@@ -16,7 +16,8 @@ migration/
 ├── env.py             connects Alembic to the Flask app and its models
 ├── script.py.mako     template used to generate new migration files
 └── version/          one file per schema change, in order
-    └── <id>_create_users_table.py
+    ├── <id>_create_users_table.py
+    └── <id>_create_notes_table.py
 ```
 
 You normally only read `version/`. Leave `alembic.ini`, `env.py` and
@@ -56,7 +57,7 @@ down_revision = '498368395aa3'   # the migration that must run before it
 Following `down_revision` links gives an ordered chain:
 
 ```
-None -> create users table -> (next change...)
+None -> create users table -> create notes table -> (next change...)
 ```
 
 `upgrade` walks the chain forward from the revision stored in
@@ -87,6 +88,7 @@ def downgrade():
 | Order | Revision message | What it does |
 |---|---|---|
 | 1 | create users table | Creates `users` (`id`, unique `username`, `_password_hash`) |
+| 2 | create notes table | Creates `notes` (`id`, `title`, `content`, `created_at`, `updated_at`, `user_id` foreign key to `users.id`, index on `user_id`) |
 
 ## Everyday commands
 
