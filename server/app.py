@@ -8,7 +8,7 @@ from marshmallow import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from config import api, app, db, jwt
-from models import User, user_schema
+from models import Note, User, note_schema, notes_schema, user_schema
 
 
 # ---------- Helpers ----------
@@ -118,9 +118,41 @@ class Me(Resource):
         return user_schema.dump(current_user), 200
 
 
+# ---------- Notes ----------
+
+class NoteList(Resource):
+    method_decorators = [jwt_required()]
+
+    def get(self):
+        """All of the current user's notes, newest first."""
+        query = (
+            db.select(Note)
+            .filter_by(user_id=current_user.id)
+            .order_by(Note.created_at.desc(), Note.id.desc())
+        )
+        notes = db.session.execute(query).scalars().all()
+        return notes_schema.dump(notes), 200
+
+    def post(self):
+        data = json_body()
+        if data is None:
+            return errors_response(["JSON body required"], 400)
+        try:
+            valid = cast(dict, note_schema.load(data))
+        except ValidationError as err:
+            return errors_response(flatten_errors(err.messages), 422)
+
+        # user_id always comes from the token, never from the request.
+        note = Note(title=valid["title"].strip(), content=valid["content"], user_id=current_user.id)
+        db.session.add(note)
+        db.session.commit()
+        return note_schema.dump(note), 201
+
+
 api.add_resource(Signup, "/signup")
 api.add_resource(Login, "/login")
 api.add_resource(Me, "/me")
+api.add_resource(NoteList, "/notes")
 
 
 if __name__ == "__main__":
