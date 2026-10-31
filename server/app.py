@@ -120,6 +120,16 @@ class Me(Resource):
 
 # ---------- Notes ----------
 
+def get_owned_note(note_id):
+    """Fetch a note only if it belongs to the current user.
+
+    Other users' notes return None (-> 404) so their existence isn't revealed.
+    """
+    return db.session.execute(
+        db.select(Note).filter_by(id=note_id, user_id=current_user.id)
+    ).scalar_one_or_none()
+
+
 class NoteList(Resource):
     method_decorators = [jwt_required()]
 
@@ -149,10 +159,48 @@ class NoteList(Resource):
         return note_schema.dump(note), 201
 
 
+class NoteDetail(Resource):
+    method_decorators = [jwt_required()]
+
+    def get(self, note_id):
+        note = get_owned_note(note_id)
+        if note is None:
+            return errors_response(["Note not found"], 404)
+        return note_schema.dump(note), 200
+
+    def patch(self, note_id):
+        note = get_owned_note(note_id)
+        if note is None:
+            return errors_response(["Note not found"], 404)
+        data = json_body()
+        if data is None:
+            return errors_response(["JSON body required"], 400)
+        try:
+            valid = cast(dict, note_schema.load(data, partial=True))
+        except ValidationError as err:
+            return errors_response(flatten_errors(err.messages), 422)
+
+        if "title" in valid:
+            note.title = valid["title"].strip()
+        if "content" in valid:
+            note.content = valid["content"]
+        db.session.commit()
+        return note_schema.dump(note), 200
+
+    def delete(self, note_id):
+        note = get_owned_note(note_id)
+        if note is None:
+            return errors_response(["Note not found"], 404)
+        db.session.delete(note)
+        db.session.commit()
+        return "", 204
+
+
 api.add_resource(Signup, "/signup")
 api.add_resource(Login, "/login")
 api.add_resource(Me, "/me")
 api.add_resource(NoteList, "/notes")
+api.add_resource(NoteDetail, "/notes/<int:note_id>")
 
 
 if __name__ == "__main__":
