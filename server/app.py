@@ -130,18 +130,39 @@ def get_owned_note(note_id):
     ).scalar_one_or_none()
 
 
+DEFAULT_PER_PAGE = 10
+MAX_PER_PAGE = 100
+
+
 class NoteList(Resource):
     method_decorators = [jwt_required()]
 
     def get(self):
-        """All of the current user's notes, newest first."""
+        """Paginated list of the current user's notes. Query: ?page=1&per_page=10"""
+        try:
+            page = int(request.args.get("page", 1))
+            per_page = int(request.args.get("per_page", DEFAULT_PER_PAGE))
+        except ValueError:
+            return errors_response(["page and per_page must be integers"], 400)
+        if page < 1 or per_page < 1:
+            return errors_response(["page and per_page must be positive"], 400)
+        per_page = min(per_page, MAX_PER_PAGE)
+
         query = (
             db.select(Note)
             .filter_by(user_id=current_user.id)
             .order_by(Note.created_at.desc(), Note.id.desc())
         )
-        notes = db.session.execute(query).scalars().all()
-        return notes_schema.dump(notes), 200
+        pagination = db.paginate(query, page=page, per_page=per_page, error_out=False)
+        return {
+            "items": notes_schema.dump(pagination.items),
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "total": pagination.total,
+            "pages": pagination.pages,
+            "has_next": pagination.has_next,
+            "has_prev": pagination.has_prev,
+        }, 200
 
     def post(self):
         data = json_body()
