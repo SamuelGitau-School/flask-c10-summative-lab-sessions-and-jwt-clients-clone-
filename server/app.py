@@ -11,29 +11,26 @@ from config import api, app, db, jwt
 from models import Note, User, note_schema, notes_schema, user_schema
 
 
-# ---------- Helpers ----------
-
+# Helpers (error,json)
 def errors_response(messages, status):
-    """Every error uses the shape {"errors": [str, ...]} so the client can list them."""
     return {"errors": messages}, status
 
 
 def flatten_errors(messages):
-    """Turn Marshmallow's {field: [msgs]} into ["field: msg", ...]."""
     return [f"{field}: {msg}" for field, msgs in messages.items() for msg in msgs]
 
 
 def json_body():
-    """Return the JSON object body, or None if missing/not an object."""
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
 
 
-# ---------- JWT callbacks ----------
+# JWT callbacks
 
 @jwt.user_lookup_loader
 def load_user(_header, payload):
-    """Make current_user the User whose id is stored in the token."""
+    
+    # Make current_user the User whose id is stored in the token
     return db.session.get(User, int(payload["sub"]))
 
 
@@ -57,10 +54,11 @@ def user_not_found(_header, _payload):
     return errors_response(["User no longer exists"], 401)
 
 
-# ---------- Auth ----------
+# Auth
 
 def auth_response(user, status):
-    """The client expects {token, user} after signup and login."""
+    
+    # The client expects {token, user} after signup and login
     token = create_access_token(identity=str(user.id))
     return {"token": token, "user": user_schema.dump(user)}, status
 
@@ -103,7 +101,8 @@ class Login(Resource):
             return errors_response(["Username and password required"], 400)
 
         user = db.session.execute(db.select(User).filter_by(username=username.strip())).scalar_one_or_none()
-        # Same message for unknown user and bad password.
+        
+        # Same message for unknown user and bad password
         if user is None or not user.authenticate(password):
             return errors_response(["Invalid username or password"], 401)
 
@@ -111,7 +110,7 @@ class Login(Resource):
 
 
 class Me(Resource):
-    """Lets the client restore a logged-in user from a stored token."""
+    
     method_decorators = [jwt_required()]
 
     def get(self):
@@ -121,10 +120,8 @@ class Me(Resource):
 # ---------- Notes ----------
 
 def get_owned_note(note_id):
-    """Fetch a note only if it belongs to the current user.
+    # Fetch a note only if it belongs to the current user
 
-    Other users' notes return None (-> 404) so their existence isn't revealed.
-    """
     return db.session.execute(
         db.select(Note).filter_by(id=note_id, user_id=current_user.id)
     ).scalar_one_or_none()
@@ -138,7 +135,8 @@ class NoteList(Resource):
     method_decorators = [jwt_required()]
 
     def get(self):
-        """Paginated list of the current user's notes. Query: ?page=1&per_page=10"""
+        
+        # Paginated list of the current user's notes. Query: ?page=1&per_page=10
         try:
             page = int(request.args.get("page", 1))
             per_page = int(request.args.get("per_page", DEFAULT_PER_PAGE))
@@ -173,7 +171,7 @@ class NoteList(Resource):
         except ValidationError as err:
             return errors_response(flatten_errors(err.messages), 422)
 
-        # user_id always comes from the token, never from the request.
+        # user_id always comes from the token, never from the request
         note = Note(title=valid["title"].strip(), content=valid["content"], user_id=current_user.id)
         db.session.add(note)
         db.session.commit()

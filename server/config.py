@@ -14,15 +14,16 @@ from sqlalchemy import MetaData
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URI", "sqlite:///app.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-# Signs the JWTs. Set a real random value via JWT_SECRET_KEY outside development.
+
+# Set a real random value via JWT_SECRET_KEY outside development
 app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "dev-only-change-me-use-a-long-random-string")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-# Needed so Flask-RESTful lets JWT errors reach the handlers in app.py
-# instead of turning them into a generic 500.
-app.config["PROPAGATE_EXCEPTIONS"] = True
-app.json.compact = False
 
-# Naming convention keeps Alembic migrations deterministic.
+# Needed so Flask-RESTful lets JWT errors reach the handlers in app.py instead of turning them into a generic 500.
+app.config["PROPAGATE_EXCEPTIONS"] = True
+# app.json.compact = False
+
+# Naming convention keeps Alembic migrations deterministic
 metadata = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",

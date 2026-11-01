@@ -1,6 +1,4 @@
-"""Database models and Marshmallow schemas."""
 from datetime import datetime
-
 from marshmallow import EXCLUDE, Schema, fields, validate
 
 from config import bcrypt, db
@@ -16,11 +14,13 @@ class User(db.Model):
     notes = db.relationship("Note", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
-        """Hash and store the password. The plain text is never saved."""
+        
+        # Hash and store the password never the plain text 
         self._password_hash = bcrypt.generate_password_hash(password.encode("utf-8")).decode("utf-8")
 
     def authenticate(self, password):
-        """Return True if the password matches the stored hash."""
+        
+        # Return True if the password matches the stored hash
         return bcrypt.check_password_hash(self._password_hash, password.encode("utf-8"))
 
 
@@ -55,7 +55,7 @@ class NoteSchema(Schema):
     user_id = fields.Int(dump_only=True)
 
 
-# EXCLUDE silently drops unknown keys, so clients cannot set fields like id or user_id.
+# EXCLUDE silently drops unknown keys, so clients cannot set fields like id or user_id
 user_schema = UserSchema(unknown=EXCLUDE)
 note_schema = NoteSchema(unknown=EXCLUDE)
 notes_schema = NoteSchema(many=True, unknown=EXCLUDE)

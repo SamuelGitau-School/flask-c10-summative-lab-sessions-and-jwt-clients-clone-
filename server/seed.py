@@ -1,4 +1,3 @@
-"""Seed the database with demo users and notes. Run after `flask db upgrade`."""
 from faker import Faker
 
 from app import app
